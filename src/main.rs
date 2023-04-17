@@ -33,7 +33,6 @@ fn main() {
         }
     } else {
         // https://patorjk.com/software/taag/#p=display&f=Big&t=i3daemon
-        log::info!(r"                                                  ");
         log::info!(r"  _ ____      _                                   ");
         log::info!(r" (_)___ \    | |                                  ");
         log::info!(r"  _  __) | __| | __ _  ___ _ __ ___   ___  _ __   ");

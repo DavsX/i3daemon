@@ -160,10 +160,15 @@ impl I3Daemon {
                 self.register_windows_to_workspace(&windows, new_workspace);
             }
             WindowChange::Close => {
-                self.unregister_windows(&windows);
-                if let Some(workspace) = tree.find_workspace_for_window(first_window_id) {
-                    self.rename_workspace(i3, workspace);
+                let window_workspace = self.window_to_workspace_num.get(&first_window_id);
+
+                if let Some(workspace_num) = window_workspace {
+                    if let Some(workspace) = tree.find_workspace(*workspace_num) {
+                        self.rename_workspace(i3, workspace);
+                    }
                 }
+
+                self.unregister_windows(&windows);
             }
             WindowChange::Title => {
                 if let Some(workspace) = tree.find_workspace_for_window(first_window_id) {
@@ -257,7 +262,11 @@ impl I3Daemon {
 
     fn run_command(&self, i3: &mut I3Stream, command: &str) {
         thread::sleep(time::Duration::from_millis(100)); // There is a race between window movement and workspace renaming
-        log::info!("Running command: {}", command);
-        i3.run_command(command).unwrap();
+        log::info!("Running command: {:X?}", command);
+
+        let result = i3.run_command(command).unwrap();
+        for payload in result.iter().filter(|p| !p.success) {
+            log::info!("Command result {:?}", payload);
+        }
     }
 }
