@@ -1,5 +1,5 @@
 use crate::{
-    tree::{Tree, Workspace},
+    tree::{Tree, Workspace, WorkspaceExtractor},
     window::{NodeWindowExtractor, Window},
 };
 
@@ -51,9 +51,8 @@ impl I3Daemon {
     }
 
     pub fn run(mut self) {
-        let mut i3stream =
-            I3Stream::conn_sub(&[Subscribe::Window, Subscribe::Workspace, Subscribe::Output])
-                .unwrap();
+        let events = [Subscribe::Window, Subscribe::Workspace, Subscribe::Output];
+        let mut i3stream = I3Stream::conn_sub(&events).unwrap();
         let mut i3 = I3::connect().unwrap();
 
         self.init_state(&mut i3);
@@ -73,11 +72,7 @@ impl I3Daemon {
         let tree = Tree::new(&root_node);
 
         for workspace in tree.workspaces.iter() {
-            if workspace.output == "__i3" {
-                continue;
-            }
-
-            println!("Initializing workspace {}", workspace.num);
+            log::info!("Initializing workspace {}", workspace.num);
 
             self.register_windows_to_workspace(&workspace.windows, workspace);
 
@@ -87,22 +82,37 @@ impl I3Daemon {
         self.update_outputs(i3);
     }
 
+    fn update_outputs(&mut self, i3: &mut I3Stream) {
+        self.outputs.clear();
+
+        for i3_output in i3.get_outputs().unwrap().iter() {
+            let output = Output {
+                name: i3_output.name.clone(),
+                width: i3_output.rect.width,
+                height: i3_output.rect.width,
+            };
+
+            log::info!(
+                "Output {} - {}x{}",
+                output.name,
+                output.width,
+                output.height
+            );
+
+            self.outputs.push(output);
+        }
+    }
+
     fn handle_workspace_event(&mut self, i3: &mut I3Stream, event: Box<WorkspaceData>) {
         match event.change {
             WorkspaceChange::Empty => {
-                let root_node = i3.get_tree().unwrap();
-                let tree = Tree::new(&root_node);
+                let workspace_node = event.current.expect("No workspace in event");
+                let workspace = workspace_node
+                    .extract_workspace()
+                    .expect("Could not extract workspace");
 
-                let workspace_num = event
-                    .current
-                    .expect("No workspace in event")
-                    .num
-                    .expect("Missing workspace number");
-                println!("WorkspaceChange::Empty workspace {}", workspace_num);
-
-                if let Some(workspace) = tree.find_workspace(workspace_num) {
-                    self.rename_workspace(i3, workspace);
-                }
+                log::info!("WorkspaceChange::Empty workspace {}", workspace.num);
+                self.rename_workspace(i3, &workspace);
             }
             _ => return,
         }
@@ -123,7 +133,7 @@ impl I3Daemon {
 
         let first_window_id = windows.first().expect("No windows in event").id;
 
-        println!("WindowChange::{:?}", event.change);
+        log::info!("WindowChange::{:?}", event.change);
 
         match event.change {
             WindowChange::New => {
@@ -180,9 +190,11 @@ impl I3Daemon {
         }
 
         if let Some(output) = self.outputs.iter().find(|o| o.name == *current_output) {
-            println!(
+            log::info!(
                 "Resizing scratchpad window {} on output {} - last seen on {}",
-                window_id, current_output, last_output
+                window_id,
+                current_output,
+                last_output
             );
 
             let width = ((output.width as f32) * 0.95) as isize;
@@ -195,31 +207,13 @@ impl I3Daemon {
         }
     }
 
-    fn update_outputs(&mut self, i3: &mut I3Stream) {
-        self.outputs.clear();
-
-        for i3_output in i3.get_outputs().unwrap().iter() {
-            let output = Output {
-                name: i3_output.name.clone(),
-                width: i3_output.rect.width,
-                height: i3_output.rect.width,
-            };
-
-            println!(
-                "Output {} - {}x{}",
-                output.name, output.width, output.height
-            );
-
-            self.outputs.push(output);
-        }
-    }
-
     fn unregister_windows(&mut self, windows: &Vec<Window>) {
         for window in windows.iter() {
             if let Some(workspace_num) = self.window_to_workspace_num.remove(&window.id) {
-                println!(
+                log::info!(
                     "Unregistering window {} on workspace {}",
-                    window.id, workspace_num
+                    window.id,
+                    workspace_num
                 );
             }
         }
@@ -230,9 +224,10 @@ impl I3Daemon {
             self.window_to_workspace_num
                 .insert(window.id, workspace.num);
 
-            println!(
+            log::info!(
                 "Registering window {} on workspace {}",
-                window.id, workspace.num
+                window.id,
+                workspace.num
             );
         }
     }
@@ -243,13 +238,12 @@ impl I3Daemon {
         }
 
         let expected_name = if let Some(window) = workspace.windows.first() {
-            let window_name = window.get_name();
-            format!("{}: {}", workspace.num, window_name)
+            format!("{}: {}", workspace.num, window.get_name())
         } else {
             format!("{}", workspace.num)
         };
 
-        if workspace.name != &expected_name {
+        if *workspace.name != expected_name {
             self.run_command(
                 i3,
                 format!(
@@ -263,7 +257,7 @@ impl I3Daemon {
 
     fn run_command(&self, i3: &mut I3Stream, command: &str) {
         thread::sleep(time::Duration::from_millis(100)); // There is a race between window movement and workspace renaming
-        println!("Running command: {}", command);
+        log::info!("Running command: {}", command);
         i3.run_command(command).unwrap();
     }
 }

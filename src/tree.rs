@@ -18,6 +18,10 @@ pub struct Workspace<'a> {
     pub windows: Vec<Window<'a>>,
 }
 
+pub trait WorkspaceExtractor {
+    fn extract_workspace(&self) -> Option<Workspace>;
+}
+
 impl<'a> Tree<'a> {
     pub fn new(root_node: &'a Node) -> Self {
         Self {
@@ -33,14 +37,9 @@ impl<'a> Tree<'a> {
 
         while let Some(node) = queue.pop_front() {
             if node.node_type == NodeType::Workspace {
-                let workspace = Workspace {
-                    num: node.num.expect("Workspace without number"),
-                    name: node.name.as_ref().expect("Workspace without name"),
-                    output: node.output.as_ref().expect("Workspace without output"),
-                    windows: node.extract_windows(),
-                };
-
-                workspaces.push(workspace);
+                if let Some(workspace) = node.extract_workspace() {
+                    workspaces.push(workspace);
+                }
             } else {
                 queue.extend(&node.nodes);
             }
@@ -51,7 +50,7 @@ impl<'a> Tree<'a> {
 
     pub fn find_workspace_for_window(&self, window_id: usize) -> Option<&'a Workspace> {
         for workspace in self.workspaces.iter() {
-            if let Some(_) = workspace.windows.iter().find(|w| w.id == window_id) {
+            if workspace.windows.iter().any(|w| w.id == window_id) {
                 return Some(workspace);
             }
         }
@@ -67,5 +66,22 @@ impl<'a> Tree<'a> {
         }
 
         None
+    }
+}
+
+impl WorkspaceExtractor for Node {
+    fn extract_workspace(&self) -> Option<Workspace> {
+        let workspace = Workspace {
+            num: self.num.expect("Workspace without number"),
+            name: self.name.as_ref().expect("Workspace without name"),
+            output: self.output.as_ref().expect("Workspace without output"),
+            windows: self.extract_windows(),
+        };
+
+        if workspace.output != "__i3" {
+            Some(workspace)
+        } else {
+            None
+        }
     }
 }
