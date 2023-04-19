@@ -28,7 +28,19 @@ impl<'a> Window<'a> {
                 }
             }
             "Slack" => "".to_owned(),
-            "Alacritty" => "".to_owned(),
+            "Alacritty" => {
+                let session_name = self
+                    .window_title
+                    .split(':')
+                    .next()
+                    .and_then(|n| n.strip_prefix(" "));
+
+                if session_name.is_some() && !session_name.unwrap().starts_with("WS") {
+                    format!("{} {}", "", session_name.unwrap())
+                } else {
+                    "".to_owned()
+                }
+            }
             "firefox" => "".to_owned(),
             "Thunar" => "".to_owned(),
             "qBittorrent" => " qB".to_owned(),
