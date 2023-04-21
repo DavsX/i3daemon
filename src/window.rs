@@ -36,7 +36,12 @@ impl<'a> Window<'a> {
                     .and_then(|n| n.strip_prefix(" "));
 
                 if session_name.is_some() && !session_name.unwrap().starts_with("WS") {
-                    format!("{} {}", "", session_name.unwrap())
+                    let name = match session_name.unwrap() {
+                        "dalsik" => "",
+                        "neverland" => "",
+                        n => n,
+                    };
+                    format!("{} {}", "", name)
                 } else {
                     "".to_owned()
                 }
