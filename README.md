@@ -1,6 +1,6 @@
 # i3daemon
 
-(i3wm)[https://i3wm.org/] event listening daemon for automatic workspace renaming based on opened windows.
+[i3wm](https://i3wm.org/) event listening daemon for automatic workspace renaming based on opened windows.
 
 Build:
 
