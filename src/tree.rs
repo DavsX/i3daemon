@@ -49,23 +49,13 @@ impl<'a> Tree<'a> {
     }
 
     pub fn find_workspace_for_window(&self, window_id: usize) -> Option<&'a Workspace> {
-        for workspace in self.workspaces.iter() {
-            if workspace.windows.iter().any(|w| w.id == window_id) {
-                return Some(workspace);
-            }
-        }
-
-        None
+        self.workspaces
+            .iter()
+            .find(|w| w.windows.iter().any(|w| w.id == window_id))
     }
 
     pub fn find_workspace(&self, workspace_num: i32) -> Option<&'a Workspace> {
-        for workspace in self.workspaces.iter() {
-            if workspace.num == workspace_num {
-                return Some(workspace);
-            }
-        }
-
-        None
+        self.workspaces.iter().find(|w| w.num == workspace_num)
     }
 }
 

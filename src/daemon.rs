@@ -52,7 +52,7 @@ impl I3Daemon {
 
     pub fn run(mut self) {
         let events = [Subscribe::Window, Subscribe::Workspace, Subscribe::Output];
-        let mut i3stream = I3Stream::conn_sub(&events).unwrap();
+        let mut i3stream = I3Stream::conn_sub(events).unwrap();
         let mut i3 = I3::connect().unwrap();
 
         self.init_state(&mut i3);
@@ -104,17 +104,14 @@ impl I3Daemon {
     }
 
     fn handle_workspace_event(&mut self, i3: &mut I3Stream, event: Box<WorkspaceData>) {
-        match event.change {
-            WorkspaceChange::Empty => {
-                let workspace_node = event.current.expect("No workspace in event");
-                let workspace = workspace_node
-                    .extract_workspace()
-                    .expect("Could not extract workspace");
+        if event.change == WorkspaceChange::Empty {
+            let workspace_node = event.current.expect("No workspace in event");
+            let workspace = workspace_node
+                .extract_workspace()
+                .expect("Could not extract workspace");
 
-                log::info!("WorkspaceChange::Empty workspace {}", workspace.num);
-                self.rename_workspace(i3, &workspace);
-            }
-            _ => return,
+            log::info!("WorkspaceChange::Empty workspace {}", workspace.num);
+            self.rename_workspace(i3, &workspace);
         }
     }
 
@@ -175,7 +172,7 @@ impl I3Daemon {
                     self.rename_workspace(i3, workspace);
                 }
             }
-            _ => return,
+            _ => (),
         }
     }
 
@@ -212,7 +209,7 @@ impl I3Daemon {
         }
     }
 
-    fn unregister_windows(&mut self, windows: &Vec<Window>) {
+    fn unregister_windows(&mut self, windows: &[Window]) {
         for window in windows.iter() {
             if let Some(workspace_num) = self.window_to_workspace_num.remove(&window.id) {
                 log::info!(
@@ -224,7 +221,7 @@ impl I3Daemon {
         }
     }
 
-    fn register_windows_to_workspace(&mut self, windows: &Vec<Window>, workspace: &Workspace) {
+    fn register_windows_to_workspace(&mut self, windows: &[Window], workspace: &Workspace) {
         for window in windows.iter() {
             self.window_to_workspace_num
                 .insert(window.id, workspace.num);

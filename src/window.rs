@@ -35,15 +35,20 @@ impl<'a> Window<'a> {
                     .next()
                     .and_then(|n| n.strip_prefix(" "));
 
-                if session_name.is_some() && !session_name.unwrap().starts_with("WS") {
-                    let name = match session_name.unwrap() {
-                        "dalsik" => "",
-                        "neverland" => "",
-                        n => n,
-                    };
-                    format!("{} {}", "", name)
-                } else {
-                    "".to_owned()
+                match session_name {
+                    Some(session_name) => {
+                        if !session_name.starts_with("WS") {
+                            let name = match session_name {
+                                "dalsik" => "",
+                                "neverland" => "",
+                                n => n,
+                            };
+                            format!("{} {}", "", name)
+                        } else {
+                            "".to_owned()
+                        }
+                    }
+                    None => "".to_owned(),
                 }
             }
             "firefox" => "".to_owned(),
@@ -79,6 +84,6 @@ impl NodeWindowExtractor for Node {
             }
         }
 
-        return windows;
+        windows
     }
 }
